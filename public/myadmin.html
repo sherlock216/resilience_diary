@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Info</title>
+  <link rel="stylesheet" href="./css/myadmin.css" />
+</head>
+
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <button type="button" class="back" onclick="location.href='./dashboard.html'">
+        ←
+      </button>
+      <h3 class="title">내 정보</h3>
+    </div>
+    <div class="info">
+      <div>
+        <label for="name">이름</label>
+        <input type="text" id="name" value="" />
+        <button class="edit-button"></button>
+      </div>
+      <div>
+        <label for="id">ID</label>
+        <input type="text" id="id" value="" readonly />
+      </div>
+      <div>
+        <label for="timeInput">나의 일지 받는 시간</label>
+        <input type="time" id="timeInput" value="" />
+        <button class="edit-button" id="saveTime"></button>
+      </div>
+    </div>
+    <div class="logout">로그아웃</div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      document.getElementById('name').value =
+        sessionStorage.getItem('name') || '';
+      document.getElementById('id').value = sessionStorage.getItem('id') || '';
+      document.getElementById('timeInput').value = sessionStorage.getItem('diary_time') || '';
+      document.querySelector('.logout').addEventListener('click', function () {
+        if (confirm('로그아웃 하시겠습니까?')) {
+          fetch('/logout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username: sessionStorage.getItem('id') })
+          }).then(res => {
+            if (res.ok) {
+              console.log('Logout success');
+              sessionStorage.clear();
+              location.href = 'login.html';
+            }
+            else {
+              console.error('Logout failed');
+            }
+          }).catch(error => {
+            console.error('Error Logout: ', error);
+          });
+        }
+      });
+
+      document
+        .querySelector('.edit-button')
+        .addEventListener('click', function () {
+          if (confirm('이름을 변경하시겠습니까?')) {
+            const name = document.getElementById('name').value;
+            const id = document.getElementById('id').value;
+
+            fetch('/update-name', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ id: id, name: name }),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                if (data.success) {
+                  alert('이름 변경 완료');
+                  sessionStorage.setItem('name', name);
+                  location.reload(true);
+                } else {
+                  alert('이름 변경 실패');
+                }
+              })
+              .catch((error) => {
+                console.error('Error: ', error);
+              });
+          }
+        });
+
+
+      document
+        .getElementById('saveTime')
+        .addEventListener('click', function () {
+          var timeValue = document.getElementById('timeInput').value;
+          var id_content = document.getElementById('id').value;
+
+          if (timeValue) {
+            fetch('/update-time', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ id: id_content, diary_time: timeValue }),
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.success) {
+                  alert('시간이 저장되었습니다.');
+                  sessionStorage.setItem('diary_time', timeValue);
+                  location.reload(true);
+                } else {
+                  alert('시간 저장에 실패했습니다.');
+                }
+              })
+              .catch((error) => console.error('Error:', error));
+          } else {
+            alert('시간을 입력해 주세요.');
+          }
+        });
+    </script>
+</body>
+
+</html>

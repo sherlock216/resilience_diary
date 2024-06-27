@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang='en'>
+
+<head>
+    <meta charset='utf-8' />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.13/index.global.min.js'></script>
+    <link rel="stylesheet" href="./css/calendar.css">
+    <link rel="stylesheet" href="./css/modal.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <button type="button" class="back" onclick="location.href='./dashboard.html'">←</button>
+            <h3 class="title">감정 일기</h3>
+        </div>
+        <div id='calendar'></div>
+    </div>
+
+    <div id="emotionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>마음 기록</h2>
+            <p>오늘 하루 어떠셨나요? 내 마음을 기록해보세요.</p>
+            <button class="emotion-button emotion-4" data-emotion="4">좋아요.</button><br>
+            <button class="emotion-button emotion-2" data-emotion="2">보통이에요.</button><br>
+            <button class="emotion-button emotion-1" data-emotion="1">안좋아요.</button><br>
+        </div>
+    </div>
+
+    <div id="viewEmotionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>감정 보기</h2>
+            <p id="emotionDisplay">감정 내용이 여기에 표시됩니다.</p>
+        </div>
+    </div>
+
+
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var calendarEl = document.getElementById('calendar');
+            let user_id = sessionStorage.getItem('id');
+            let selectDate = null;
+            let selectEmotion = null;
+
+            if (!user_id) {
+                console.error('User ID not found');
+                return;
+            }
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next',
+                    center: 'title',
+                    right: 'today',
+                },
+                locale: "ko",
+                customButtons: {
+                    prevYear: {
+                        text: '〈〈',
+                        click: function () {
+                            calendar.prevYear();
+                        }
+                    },
+                    prev: {
+                        text: '〈',
+                        click: function () {
+                            calendar.prev();
+                        }
+                    },
+                    next: {
+                        text: '〉',
+                        click: function () {
+                            calendar.next();
+                        }
+                    },
+                    nextYear: {
+                        text: '〉〉',
+                        click: function () {
+                            calendar.nextYear();
+                        }
+                    }
+                },
+                views: {
+                    dayGridMonth: {
+                        titleFormat: { year: 'numeric', month: 'short' }
+                    }
+                },
+                events: function (info, successCallback, failureCallback) {
+                    fetch(`/calendar/${user_id}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const events = data.map(entry => ({
+                                title: getEmotionTitle(entry.emotion),
+                                start: entry.date
+                            }));
+                            successCallback(events);
+                        })
+                        .catch(error => {
+                            console.error('Error fetching events:', error);
+                            failureCallback(error);
+                        });
+                },
+
+                dateClick: function (info) {
+                    selectDate = info.dateStr;
+                    openModal();
+                },
+                eventDidMount: function (info) {
+                    // Customize event rendering
+                    info.el.innerHTML = '';
+                    const bar = document.createElement('div');
+                    bar.className = 'emotion-bar';
+                    info.el.appendChild(bar);
+                },
+                eventClick: function (info) {
+                    // Handle event click to show details
+                    selectDate = info.event.startStr;
+                    fetchEmotion(user_id, selectDate);
+                }
+            });
+
+            function fetchEmotion(user_id, date) {
+                console.log(date);
+                fetch('/calendar/getEmotion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: user_id, date: date })
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        openViewModal(data.emotion);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching emotion:', error);
+                    });
+            }
+
+            calendar.render();
+
+            function getEmotionTitle(emotion) {
+                const emotionMap = {
+                    0: '매우 나쁨',
+                    1: '나쁨',
+                    2: '보통',
+                    3: '좋음',
+                    4: '매우 좋음'
+                };
+                return emotionMap[emotion] || 'Unknown';
+            };
+
+
+            // 감정 보기 모달 열기
+            function openViewModal(emotion) {
+                document.getElementById('emotionDisplay').textContent = getEmotionTitle(emotion);
+                document.getElementById('viewEmotionModal').style.display = 'block';
+            }
+
+            // 감정 보기 모달 닫기
+            function closeViewModal() {
+                document.getElementById('viewEmotionModal').style.display = 'none';
+            }
+
+            // 감정 보기 모달 닫기 버튼 클릭 이벤트
+            document.querySelector('#viewEmotionModal .close').onclick = function () {
+                closeViewModal();
+            }
+
+
+
+            // 모달 열기
+            function openModal() {
+                document.getElementById('emotionModal').style.display = 'block';
+            }
+
+            // 모달 닫기
+            function closeModal() {
+                document.getElementById('emotionModal').style.display = 'none';
+            }
+
+            // 모달 닫기 버튼 클릭 이벤트
+            document.querySelector('.close').onclick = function () {
+                closeModal();
+            }
+            // 감정 버튼 클릭 이벤트
+            document.querySelectorAll('.emotion-button').forEach(button => {
+                button.onclick = function () {
+                    const selectEmotion = parseInt(button.getAttribute('data-emotion'));
+                    saveEmotion(selectEmotion);
+                }
+            });
+
+            function saveEmotion(emotion) {
+
+                fetch('/calendar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: user_id,
+                        date: selectDate,
+                        emotion: emotion
+                    })
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        let existingEvent = calendar.getEventById(`${user_id}_${selectDate}`);
+                        if (existingEvent) {
+                            existingEvent.remove();
+                        }
+                        // 성공적으로 저장된 후 달력에 새 이벤트 추가
+                        calendar.addEvent({
+                            id: `${user_id}_${selectDate}`,
+                            start: selectDate
+                        });
+
+                        closeModal();
+                        alert('감정이 저장되었습니다.');
+                        location.reload(true);
+                    })
+
+                    .catch(error => {
+                        console.error('Error saving emotion:', error);
+                    });
+            }
+        });
+    </script>
+</body>
+
+</html>

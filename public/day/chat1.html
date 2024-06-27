@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+  <link rel="stylesheet" type="text/css" href="/css/chat.css" />
+</head>
+
+<body>
+  <div class="top-bar">
+    <button type="button" class="back" onclick="updatestamp_back()">
+      ←
+    </button>
+    <h3 class="title">나의 일지</h3>
+  </div>
+  <div id="chatContent"></div>
+  <div class="input-container">
+    <input id="myChat" type="text" disabled />
+    <button id="send">
+      <img src="../image/arrow.png" alt="Submit">
+  </button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let selected = [];
+    let staged = 1;
+
+    const room_id = sessionStorage.getItem('room_id');
+    const user_id = sessionStorage.getItem('id');
+    const grouped = sessionStorage.getItem('grouped');
+    const room_type = sessionStorage.getItem('room_type');
+
+
+    function updatestamp() {
+      let times_u = new Date(
+        new Date().getTime() + 9 * 60 * 60 * 1000
+      ).toISOString();
+      socket.emit('updatestamp', {
+        user_id: user_id,
+        room_id: room_id,
+        lastseen: times_u,
+      });
+    }
+
+    function updatestamp_back() {
+      let times = new Date(
+        new Date().getTime() + 9 * 60 * 60 * 1000
+      ).toISOString();
+      socket.emit('updatestamp_back', {
+        user_id: user_id,
+        room_id: room_id,
+        lastseen: times,
+      });
+      location.href = '../dashboard.html';
+    }
+
+    // 메시지를 화면에 추가하는 함수
+    function addMessage(sender, text, options = [], time, stage) {
+      const chatContent = document.getElementById('chatContent');
+
+      const msgLine = document.createElement('div');
+      msgLine.className = 'msgLine';
+      if (sender === 'user') {
+        msgLine.classList.add('right');
+      } else {
+        const avatarContainer = document.createElement('div');
+        avatarContainer.className = 'avatarContainer';
+
+        const avatar = document.createElement('img');
+        avatar.src = '/image/chat1.png';
+        avatar.className = 'avatar';
+        avatarContainer.appendChild(avatar);
+
+        const opponentName = document.createElement('div');
+        opponentName.className = 'opponentName';
+        opponentName.textContent = '나의 일지';
+        avatarContainer.appendChild(opponentName);
+
+        chatContent.appendChild(avatarContainer);
+      }
+
+      const msgBox = document.createElement('div');
+      msgBox.className = 'msgBox';
+      msgBox.innerHTML = text;
+      if (sender === 'user') {
+        msgBox.classList.add('right');
+      }
+
+      const msgTime = document.createElement('div');
+      msgTime.className = 'msgTime';
+      const date = new Date(new Date(time) - 9 * 60 * 60 * 1000);
+      const formattedTime = `${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+      msgTime.textContent = formattedTime;
+
+      msgBox.appendChild(msgTime);
+
+      msgLine.appendChild(msgBox);
+      chatContent.appendChild(msgLine);
+
+      if (options.length > 0) {
+        const optionContainer = document.createElement('div');
+        optionContainer.className = 'options';
+        options.forEach((option) => {
+          const optionButton = document.createElement('button');
+          optionButton.className = 'optionButton';
+          optionButton.textContent = option;
+          optionButton.onclick = () => {
+            if (stage === 3) {
+              staged = stage;
+              if (selected.includes(option)) {
+                selected = selected.filter(item => item !== option);
+                optionButton.classList.remove('selected');
+              } else {
+                selected.push(option);
+                optionButton.classList.add('selected');
+              }
+              document.getElementById('send').disabled = selected.length < 3;
+            } else {
+              selected = [option];
+              staged = stage;
+              document.getElementById('send').disabled = false;
+              document
+                .querySelectorAll('.optionButton')
+                .forEach((btn) => btn.classList.remove('selected'));
+              optionButton.classList.add('selected');
+            }
+          };
+          optionContainer.appendChild(optionButton);
+        });
+        chatContent.appendChild(optionContainer);
+      }
+
+      chatContent.scrollTop = chatContent.scrollHeight;
+    }
+
+    function loadMessage() {
+      fetch('/load-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user_id, room_id: room_id }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          data.forEach((msg) => {
+
+            if (msg.machine == 1) {
+              let parsedMsg;
+              parsedMsg = JSON.parse(msg.message);
+              //console.log(parsedMsg);
+              if (parsedMsg && parsedMsg.text && parsedMsg.options) {
+                // If the message is in the structured format, use addMessage
+                addMessage(parsedMsg.sender, parsedMsg.text, parsedMsg.options, msg.timestamp, parsedMsg.stage);
+              } else {
+                addMessage(parsedMsg.sender, parsedMsg.text, [], msg.timestamp, 0)
+              }
+            }
+            else {
+              addMessage('user', msg.message, [], msg.timestamp, 0);
+            }
+          });
+          let chatContent = document.getElementById('chatContent');
+          chatContent.scrollTop = chatContent.scrollHeight;
+        })
+        .catch((error) => console.error('Error loading messages:', error));
+    }
+
+    socket.on('connect', () => {
+      console.log('연결되었습니다 테스트중');
+      socket.emit('join_room', { room_id });
+      updatestamp(); //이게문제인듯 lastmessage update 되면 안됨
+      loadMessage();
+    });
+    socket.on('disconnect', () => {
+      console.log('끊어졌습니다 테스트중');
+    });
+
+
+    // 수신
+    socket.on('response-save', (message) => {
+      addMessage(
+        message.sender,
+        message.text,
+        message.options,
+        message.time,
+        message.stage
+      );
+      fetch('/save-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user_id,
+          message: JSON.stringify(message),
+          room_id: room_id,
+          last_message_time: new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString(),
+          grouped: 'self',
+          room_type: room_type,
+          machine: 1,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.text();
+          }
+          throw new Error('Network response was not ok.');
+        })
+        .then((data) => {
+          console.log('메세지 성공', data);
+        })
+        .catch((error) => {
+          console.error('Error: ', error);
+        });
+    });
+
+    //외부 메시지 수신
+    socket.on('schedule-message', function (data) {
+      console.log('New message received:', data);
+      addMessage(data.sender, data.message, data.options, data.time, data.stage);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from chat1');
+    });
+
+    // 발신
+    function sendMessage(text) {
+      const currenttime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString();
+      console.log(currenttime);
+      socket.emit('first-send-message', {
+        text,
+        time: currenttime,
+        stage: staged,
+      });
+      addMessage('user', text, [], currenttime);
+      selected = [];
+      document.getElementById('send').disabled = true;
+      document
+        .querySelectorAll('.optionButton')
+        .forEach((btn) => btn.classList.remove('selected'));
+
+      fetch('/save-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user_id,
+          message: text,
+          room_id: room_id,
+          last_message_time: new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString(),
+          grouped: 'self',
+          room_type: room_type,
+          machine: 0
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.text();
+          }
+          throw new Error('Network response was not ok.');
+        })
+        .then((data) => {
+          console.log('메세지 성공', data);
+        })
+        .catch((error) => {
+          console.error('Error: ', error);
+        });
+    }
+    document.getElementById('send').addEventListener('click', () => {
+      if (selected.length > 0) {
+        const message = selected.join(' '); // selected 배열을 텍스트로 변환
+        sendMessage(message);
+      }
+    });
+
+
+    window.addEventListener('beforeunload', () => {
+    });
+
+    // 예시로 초기 상태 설정
+    document.addEventListener('DOMContentLoaded', () => {
+      selected = [];
+      document.getElementById('send').disabled = true;
+    });
+  </script>
+</body>
+
+</html>

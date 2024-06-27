@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resilience Diary Dashboard</title>
+  <link rel="stylesheet" href="./css/dashstyle.css" />
+</head>
+
+<body>
+  <div class="header">
+    <button class="icon-button left-button" onclick="location.href='myadmin.html'">
+      <img src="./image/myadmin_icon.png" alt="Search" />
+    </button>
+    <span class="title">Resilience Diary</span>
+    <button class="icon-button right-button" onclick="location.href='calendar.html'">
+      <img src="./image/schedule_icon.png" alt="Menu" />
+    </button>
+  </div>
+  <div class="chat-room-container">
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const user_id = sessionStorage.getItem('id');
+    const grouped = sessionStorage.getItem('grouped');
+
+    const chatRoomContainer = document.getElementById('chat-room-container');
+
+
+    /*document.getElementById('chat3').addEventListener('click', function () {
+      fetch('/room-id/chat3', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user_id }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.room_id) {
+            sessionStorage.setItem('room_id', data.room_id);
+            sessionStorage.setItem('room_type', 3);
+            window.location.href = './day/chat2.html';
+          } else {
+            console.error('Room not found');
+          }
+        })
+        .catch((error) => console.error('Error fetching room_id:', error));
+    });*/
+
+
+
+
+
+
+
+    // string 시간을 내가 필요한 부분만 보여주는 함수
+    function setTime(time) {
+      // 정규 표현식
+      const match = time.match(/-(\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+      const extractedTime = match ? match[1] : '시간 형식 오류';
+
+      return extractedTime;
+    }
+
+    function isJSON(str) {
+      try {
+        JSON.parse(str);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // get badge, 메시지, 마지막 보낸 시간 가져오기(DB에서)
+    fetch('/get-chat-info', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: user_id }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        data.forEach(chat => {
+          const roomElement = document.getElementById(`chat${chat.room_type}`);
+          if (roomElement) {
+            const lastMessageElement = roomElement.querySelector('.chat-info p');
+            const lastTimeElement = roomElement.querySelector('.chat-time .last-time');
+            const unreadElement = roomElement.querySelector('.chat-time .notification');
+
+            let lastMessage = chat.last_message;
+
+            if (isJSON(lastMessage)) {
+              const parsedMessage = JSON.parse(lastMessage);
+              if (parsedMessage.sender === 'bot') {
+                lastMessage = "봇이 메시지를 보냈습니다";
+              }
+            }
+
+            if (lastMessageElement) {
+              lastMessageElement.textContent = lastMessage;
+            }
+
+            if (lastTimeElement) {
+              lastTimeElement.textContent = setTime(chat.last_message_time);
+            }
+
+            if (unreadElement) {
+              unreadElement.textContent = chat.unread;
+              if (chat.unread > 0) {
+                unreadElement.style.display = 'inline-block';
+              } else {
+                unreadElement.style.display = 'none';
+              }
+            }
+          }
+        });
+      })
+      .catch(error => console.error('Error fetching chat info:', error));
+
+
+    // 안되는 부분(실시간으로 badge, 메시지, 마지막 보낸 시간 가져오기)
+    socket.on('connect', () => {
+      console.log('연결되었습니다 테스트중');
+    });
+    socket.on('disconnect', () => {
+      console.log('끊어졌습니다 테스트중');
+    });
+
+    let room_array = [];
+    fetch('/room-id/all-room-admin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: user_id }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.rooms) {
+          const rooms = data.rooms;
+          console.log('Received rooms:', rooms);
+
+          rooms.forEach(room => {
+            const room_id = room.room_id;
+            socket.emit('join_room', { room_id });
+
+            // 동적으로 채팅방 생성
+            const chatRoomContainer = document.getElementById('chat-room-container');
+            const chatRoomDiv = document.createElement('div');
+            chatRoomDiv.className = 'chat-room';
+            chatRoomDiv.id = `chat${room_id}`;
+
+            chatRoomDiv.innerHTML = `
+            <img src="./image/chat3.png" alt="Chat Icon" class="chat-icon" />
+            <div class="chat-info">
+              <h5>${room.room_name || '상담받고 싶어요'}</h5>
+              <p>${room.last_message || ''}</p>
+            </div>
+            <div class="chat-time">
+              <span class="last-time">${room.last_time || ''}</span>
+              <span class="notification">${room.notification_count || ''}</span>
+            </div>
+          `;
+
+            chatRoomContainer.appendChild(chatRoomDiv);
+          });
+
+        } else {
+          console.error('Rooms not found');
+        }
+      })
+      .catch((error) => console.error('Error fetching room_id:', error));
+
+    socket.on('last_message', function (data) {
+      console.log('Received last_message:', data); // 이 부분부터 작동하지 않음
+      const { room_id, message, last_message_time, room_type, sender_id } = data;
+      if (room_array.includes(parseInt(room_id))) {
+        socket.emit('request_unread', { user_id: sessionStorage.getItem('id'), room_id, room_type, sender_id });
+        const roomElement = document.getElementById(`chat${room_type}`);
+        if (roomElement) {
+          const lastMessageElement = roomElement.querySelector('.chat-info p');
+          const lastTimeElement = roomElement.querySelector('.chat-time .last-time');
+          if (lastMessageElement) {
+            lastMessageElement.textContent = message;
+          }
+          if (lastTimeElement) {
+            lastTimeElement.textContent = setTime(last_message_time);
+          }
+        }
+      }
+    });
+
+    socket.on('update_unread', (data) => {
+      const { room_id, unread, room_type } = data;
+      const roomElement = document.getElementById(`chat${room_type}`);
+      if (roomElement) {
+        const unreadElement = roomElement.querySelector('.chat-time .notification');
+        if (unreadElement) {
+          unreadElement.textContent = unread;
+          if (unread > 0) {
+            unreadElement.style.display = 'inline-block';
+          } else {
+            unreadElement.style.display = 'none';
+          }
+        }
+      }
+    });
+
+
+  </script>
+
+
+  <script type="module">
+    import { app, analytics, messaging } from './firebase.js';
+
+    // 여기에서 Firebase 기능을 사용할 수 있습니다
+    console.log('Firebase App:', app);
+    console.log('Firebase Analytics:', analytics);
+    console.log('Firebase Messaging:', messaging);
+  </script>
+
+</body>
+
+</html>

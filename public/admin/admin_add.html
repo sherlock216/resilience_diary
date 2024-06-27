@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin</title>
+    <link rel="stylesheet" href="../css/add.css">
+</head>
+
+<body>
+
+    <div class="top-bar">
+        <button type="button" class="back" onclick="location.href='./admin.html'">←</button>
+        <h3 class="title">회원 추가하기</h3>
+
+    </div>
+
+    <form class="form-container">
+        <label for="name">이름</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="user_id">ID</label>
+        <input type="text" id="user_id" name="user_id" required>
+
+        <label for="grouped">그룹</label>
+        <input type="text" id="grouped" name="grouped" required>
+
+        <div class="button-container">
+            <button type="button" id="submitBtn" class="submitBtn">추가</button>
+        </div>
+    </form>
+
+
+    <script>
+        document.getElementById('submitBtn').addEventListener('click', function (event) {
+            event.preventDefault();
+            let name = document.getElementById('name').value;
+            let user_id = document.getElementById('user_id').value;
+            let grouped = document.getElementById('grouped').value;
+
+            if (!name || !user_id || !grouped) {
+                alert('모든 항목을 작성해주세요.');
+                return;
+            }
+            fetch('/admin/save_user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8'
+                },
+                body: JSON.stringify({ user_id: user_id, name: name, grouped: grouped })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        console.log(data);
+                        alert('성공');
+                        sessionStorage.clear();
+                        location.href = './admin.html';
+                    }
+                    else{
+                        console.log('추가 실패: ', data.error);
+                    }
+
+                })
+
+                .catch(error => alert('에러가 발생했습니다'));
+        })
+
+    </script>
+
+</body>
+
+</html>

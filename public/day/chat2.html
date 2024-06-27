@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+  <link rel="stylesheet" type="text/css" href="../css/chat.css" />
+</head>
+
+<body>
+  <div class="top-bar">
+    <button type="button" class="back" onclick="updatestamp_back()">←</button>
+    <h3 class="title">나의 일지</h3>
+  </div>
+  <div id="chatContent"></div>
+  <div class="input-container">
+    <input id="myChat" type="text" />
+    <button id="send">
+      <img src="../image/arrow.png" alt="Submit">
+  </button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const room_id = sessionStorage.getItem('room_id');
+    const user_id = sessionStorage.getItem('id');
+    const grouped = sessionStorage.getItem('grouped');
+    const room_type = sessionStorage.getItem('room_type');
+    const users = {};
+
+
+    function updatestamp() {
+      let times_u = new Date(
+        new Date().getTime() + 9 * 60 * 60 * 1000
+      ).toISOString();
+      socket.emit('updatestamp', {
+        user_id: user_id,
+        room_id: room_id,
+        lastseen: times_u,
+      });
+    }
+
+    function updatestamp_back() {
+      let times = new Date(
+        new Date().getTime() + 9 * 60 * 60 * 1000
+      ).toISOString();
+      socket.emit('updatestamp_back', {
+        user_id: user_id,
+        room_id: room_id,
+        lastseen: times,
+      });
+      if (user_id == 'admin') location.href = "../admin/admin.html";
+      else location.href = '../dashboard.html';
+    }
+
+    // 고유 색상을 생성하는 함수
+    function generateColor(userId) {
+      let hash = 0;
+      for (let i = 0; i < userId.length; i++) {
+        hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const h = hash % 360;
+      return `hsl(${h}, 30%, 30%)`;
+    }
+
+
+
+    // 메시지를 화면에 추가하는 함수
+    function addMessage(sender, text, options = [], time, stage) {
+      const chatContent = document.getElementById('chatContent');
+
+      const msgLine = document.createElement('div');
+      msgLine.className = 'msgLine';
+      if (sender == sessionStorage.getItem('id')) {
+        msgLine.classList.add('right');
+      }
+      else {
+
+        const avatarContainer = document.createElement('div');
+        avatarContainer.className = 'avatarContainer';
+
+
+        if (sender === 'admin') {
+          const adminImage = document.createElement('img');
+          adminImage.src = '/image/chat3_1.png';  // 실제 이미지 경로로 변경
+          adminImage.className = 'avatar';
+          avatarContainer.appendChild(adminImage);
+
+          const userName = document.createElement('div');
+          userName.className = 'userName';
+          userName.textContent = '상담 받고 싶어요~';
+          avatarContainer.appendChild(userName);
+        } else {
+        const userInitial = document.createElement('div');
+        userInitial.className = 'userInitial';
+        userInitial.textContent = users[sender] ? users[sender].charAt(0) : '';
+        console.log('Users: ', users, sender);
+        userInitial.style.backgroundColor = generateColor(sender);
+        avatarContainer.appendChild(userInitial);
+
+        const userName = document.createElement('div');
+        userName.className = 'userName';
+        userName.textContent = users[sender] || '';
+        avatarContainer.appendChild(userName);
+        }
+        chatContent.appendChild(avatarContainer);
+
+      }
+
+      const msgBox = document.createElement('div');
+      msgBox.className = 'msgBox';
+      msgBox.innerHTML = text;
+
+
+      const msgTime = document.createElement('div');
+      msgTime.className = 'msgTime';
+      // 시간 막 조정했음
+      const date = new Date(new Date(time) - 9 * 60 * 60 * 1000);
+      const formattedTime = `${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+      msgTime.textContent = formattedTime;
+      if (sender == sessionStorage.getItem('id')) {
+        msgTime.style.bottom = '-40px';
+      } else {
+        msgTime.style.bottom = '-20px';
+      }
+      msgBox.appendChild(msgTime);
+
+      msgLine.appendChild(msgBox);
+      chatContent.appendChild(msgLine);
+
+      chatContent.scrollTop = chatContent.scrollHeight;
+    }
+
+    function loadMessage() {
+      fetch('/load-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user_id, room_id: room_id }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          data.forEach((msg) => {
+            if (!users[msg.user_id]) {
+              users[msg.user_id] = msg.user_name;  // 사용자 이름을 저장
+            }
+            addMessage(msg.user_id, msg.message, [], msg.timestamp, 0);
+          });
+          let chatContent = document.getElementById('chatContent');
+          chatContent.scrollTop = chatContent.scrollHeight;
+        })
+        .catch((error) => console.error('Error loading messages:', error));
+    }
+
+    socket.on('connect', () => {
+      console.log('연결되었습니다 테스트중');
+      socket.emit('join_room', { room_id });
+      updatestamp(); //이게문제인듯 lastmessage update 되면 안됨
+      loadMessage();
+    });
+    socket.on('disconnect', () => {
+      console.log('끊어졌습니다 테스트중');
+    });
+
+    // 수신
+    socket.on('message', (message) => {
+      if (!users[message.sender]) {
+        users[message.sender] = message.sender_name;  // 사용자 이름을 저장
+      }
+      addMessage(message.sender, message.text, message.options, message.time);
+    });
+
+    //외부 메시지 수신
+    socket.on('new_message', function (data) {
+      if (data.user_id !== sessionStorage.getItem('id')) {
+        addMessage(data.user_id, data.message, data.options, data.last_message_time, data.stage);
+      }
+
+    });
+
+    // 발신
+    function sendMessage(text) {
+      let input = document.getElementById('myChat');
+
+      addMessage(user_id, text, [], new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString());
+
+      fetch('/save-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user_id,
+          message: text,
+          room_id: room_id,
+          last_message_time: new Date(
+            new Date().getTime() + 9 * 60 * 60 * 1000
+          ).toISOString(),
+          grouped: grouped,
+          room_type: room_type,
+          machine: 0,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.text();
+          }
+          throw new Error('Network response was not ok.');
+        })
+        .then((data) => {
+          console.log('메세지 성공', data);
+        })
+        .catch((error) => {
+          console.error('Error: ', error);
+        });
+    }
+    document.getElementById('send').addEventListener('click', () => {
+      const myChat = document.getElementById('myChat');
+      const text = myChat.value;
+      if (text.trim() !== '') {
+        sendMessage(text);
+        myChat.value = '';
+      }
+    });
+  </script>
+</body>
+
+</html>

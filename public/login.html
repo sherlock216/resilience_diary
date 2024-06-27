@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #4a8dac;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+      padding: 40px;
+      width: 300px;
+      /* 입력 폼의 너비를 제한 */
+    }
+
+    .logo {
+      width: 30%;
+      height: auto;
+    }
+
+    h1 {
+      color: white;
+      margin-bottom: 20px;
+    }
+
+    .form-control {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    input[type='text'] {
+      width: 90%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      color: white;
+      background-color: #6a7ba2;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+  </style>
+  <link rel="manifest" href="../manifest.json" />
+</head>
+
+<body>
+  <div class="container">
+    <img src="./image/icon.png" alt="Resilience Diary Icon" class="logo" />
+    <h1>Resilience Diary</h1>
+    <form action="/login" method="post">
+      <input type="text" id="name" name="username" placeholder="Name" />
+      <button type="submit">로그인</button>
+    </form>
+  </div>
+
+  <script>
+    const form = document.querySelector('form');
+    console.log(form);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const username = document.getElementById('name').value;
+      const data = JSON.stringify({ username: username });
+      console.log('JSON data submitted:', data);
+      fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: data,
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            sessionStorage.setItem('id', data.user_id);
+            sessionStorage.setItem('name', data.name);
+            sessionStorage.setItem('grouped', data.grouped);
+            sessionStorage.setItem('diary_time', data.diary_time);
+            if(data.user_id == 'admin') window.location.href = '/admin/admin.html';
+            else window.location.href = '/dashboard.html';
+          } else {
+            alert('로그인이 틀렸습니다.');
+          }
+        })
+        .catch((error) => console.error('Error:', error));
+    });
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('../firebase-messaging-sw.js').then(function () {
+        console.log('서비스 워커 등록 완료!');
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+            console.log('Notification permission granted.');
+            // 여기에서 추가적으로 토큰을 등록하거나 필요한 작업을 수행할 수 있습니다.
+          } else {
+            console.log('Notification permission denied.');
+          }
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin</title>
+  <link rel="stylesheet" href="../css/dashstyle.css" />
+  <style>
+    .button {
+      background-color: #4a8dac;
+      border: none;
+      color: white;
+    }
+
+    .notification {
+      margin: 5px;
+    }
+
+    .buttonbox {
+      background-color: #F0F0F0;
+      color: #000000;
+      font-size: 13px;
+      padding: 1px 6px;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .buttonbox:last-child {
+      margin-right: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <span class="title">Resilience Diary</span>
+  </div>
+
+  <div class="header">
+    <button class="button left-button" id="cvs">
+      CVS저장
+    </button>
+    <button class="button left-button" id="logout">
+      로그아웃
+    </button>
+    <button class="button right-button" id="add">
+      회원 추가
+    </button>
+  </div>
+
+  <div class="chat-room-container">
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+
+    sessionStorage.setItem('id', 'admin');
+
+    
+    const socket = io();
+    function createChatRoom(item) {
+      const chatRoomContainer = document.querySelector('.chat-room-container');
+
+      const chatRoom = document.createElement('div');
+      chatRoom.className = 'chat-room';
+      chatRoom.id = `chat-${item['user_id']}`;
+
+      const chatIcon = document.createElement('img');
+      chatIcon.src = "../image/chat3.png";
+      chatIcon.alt = "Heart Icon";
+      chatIcon.className = "chat-icon";
+      chatRoom.appendChild(chatIcon);
+
+      const chatInfo = document.createElement('div');
+      chatInfo.className = 'chat-info';
+
+      const nameElement = document.createElement('h5');
+      nameElement.textContent = '이름: ' + item['name'];
+      chatInfo.appendChild(nameElement);
+
+      const idElement = document.createElement('h5');
+      idElement.textContent = 'ID: ' + item['user_id'];
+      chatInfo.appendChild(idElement);
+
+      const groupElement = document.createElement('h5');
+      groupElement.textContent = '그룹: ' + item['grouped'];
+      chatInfo.appendChild(groupElement);
+
+      const lastMessage = document.createElement('p');
+      lastMessage.id = `chat-${item['user_id']}-last-message`;
+      chatInfo.appendChild(lastMessage);
+
+      chatRoom.appendChild(chatInfo);
+
+      const chatTime = document.createElement('div');
+      chatTime.className = 'chat-time';
+
+      const lastTime = document.createElement('span');
+      lastTime.id = `chat-${item['user_id']}-last-time`;
+      lastTime.className = 'last-time';
+      chatTime.appendChild(lastTime);
+
+      const notification = document.createElement('span');
+      notification.id = `badge-${item['room_id']}`;
+      notification.className = 'notification';
+      chatTime.appendChild(notification);
+
+      chatRoom.appendChild(chatTime);
+
+      const chatSetting = document.createElement('div');
+      chatSetting.className = 'chat-setting';
+
+      const consultButton = document.createElement('button');
+      consultButton.className = 'buttonbox';
+      consultButton.textContent = '상담';
+      consultButton.onclick = () => consult(item['user_id']);
+      chatSetting.appendChild(consultButton);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'buttonbox';
+      deleteButton.textContent = '삭제';
+      deleteButton.onclick = () => delok(item['user_id']);
+      chatSetting.appendChild(deleteButton);
+
+      chatRoom.appendChild(chatSetting);
+
+      chatRoomContainer.appendChild(chatRoom);
+    }
+
+    function loadData() {
+      // Session Storage에서 데이터 가져오기
+      for (let j = 0; j < sessionStorage.length; j++) {
+        let key = sessionStorage.key(j);
+        if (key == 'grouped' || key == 'name' || key == 'diary_time' || key == 'id' || key == 'admin' || key == 'room_id' || key == 'room_type') continue;
+        //if (key == 'id' || key == 'name' || key == 'job' || key == 'grouped') continue;
+
+        let item = sessionStorage.getItem(key);
+        item = JSON.parse(item);
+
+        createChatRoom(item);
+      }
+    }
+
+
+
+    let globaldata = [];
+
+    fetch('/admin', {
+      method: 'GET',
+    })
+      .then((response) => {
+        if (response.status === 401) {
+          window.location.href = '../login.html';
+          return;
+        }
+        return response.json();
+      })
+      .then((data) => {
+        //foreach를 사용하여 각 데이터 세션 스토리지에 저장
+        data.forEach((item) => {
+          sessionStorage.setItem(item['user_id'], JSON.stringify(item));
+          globaldata.push(item);
+        });
+      })
+      .then(loadData)
+      .then(() => { // get badge, 메시지, 마지막 보낸 시간 가져오기(DB에서)
+        return fetch('/get-chat-info-admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ user_id: 'admin' }),
+        })
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(chat => {
+              console.log("Chat: ", chat);
+              const badgeElement = document.getElementById(`badge-${chat.room_id}`);
+              if (badgeElement) {
+                badgeElement.textContent = chat.unread;
+              }
+            });
+          })
+          .catch(error => console.error('Error fetching chat info:', error));
+      })
+      .catch((error) =>
+        alert(
+          '테스트를 한 기록이 없습니다. 시작하기를 눌러 테스트를 먼저 진행해주세요.'
+        )
+      );
+
+
+
+
+    // 실시간 업데이트
+    socket.on('connect', () => {
+      console.log('연결되었습니다 테스트중');
+    });
+    socket.on('disconnect', () => {
+      console.log('끊어졌습니다 테스트중');
+    });
+
+    let room_array = [];
+    fetch('/room-id/all-room', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: 'admin' }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.room_ids) {
+          const room_ids = data.room_ids;
+          room_array = room_ids;
+
+          room_ids.forEach(room_id => {
+            socket.emit('join_room', { room_id });
+          });
+
+        } else {
+          console.error('Room not found');
+        }
+      })
+      .catch((error) => console.error('Error fetching room_id:', error));
+
+    socket.on('last_message', function (data) {
+      console.log('Received last_message:', data);
+      const { room_id, message, last_message_time, room_type, sender_id } = data;
+      if (room_array.includes(parseInt(room_id))) {
+        socket.emit('request_unread', { user_id: sessionStorage.getItem('id'), room_id, room_type, sender_id });
+      }
+    });
+
+    socket.on('update_unread', (data) => {
+      console.log('update data: ', data);
+      const { room_id, unread, user_id } = data;
+      const badgeElement = document.getElementById(`badge-${room_id}`);
+      if (badgeElement) {
+        badgeElement.textContent = unread;
+      }
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    document.getElementById('add').addEventListener('click', () => {
+      window.location.href = './admin_add.html';
+    });
+
+    function delok(user_id) {
+      if (
+        confirm(
+          '정말 삭제하시겠습니까? (주의: 삭제 시 해당 사용자에 대한 메시지 데이터는 삭제되어 cvs 추출 불가합니다!)'
+        )
+      ) {
+        fetch(`/admin/delete_user/${user_id}`, {
+          method: 'DELETE',
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data.message);
+            alert('사용자 삭제 완료');
+            sessionStorage.clear();
+            location.href = 'admin.html';
+          })
+          .catch((error) => {
+            console.error('오류 발생: ', error);
+            alert('삭제 과정 중 오류 발생');
+          });
+      }
+    }
+
+    function consult(user_id) {
+      sessionStorage.setItem('admin', user_id);
+      fetch('/room-id/chat3', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user_id }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.room_id) {
+            sessionStorage.clear();
+            sessionStorage.setItem('id', 'admin');
+            sessionStorage.setItem('grouped', data.grouped);
+            sessionStorage.setItem('room_id', data.room_id);
+            sessionStorage.setItem('room_type', 3);
+            window.location.href = '../day/chat2.html';
+          } else {
+            console.error('Room not found');
+          }
+        })
+        .catch((error) => console.error('Error fetching room_id:', error));
+    }
+
+
+
+    document.getElementById('logout').addEventListener('click', function (e) {
+      e.preventDefault();
+      if (!confirm('정말 로그아웃하시겠습니까?')) {
+        return;
+      }
+      fetch('/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username: sessionStorage.getItem('id') })
+      }).then(res => {
+        if (res.ok) {
+          console.log('Logout success');
+          sessionStorage.clear();
+          location.href = '../login.html';
+        }
+        else {
+          console.error('Logout failed');
+        }
+      }).catch(error => {
+        console.error('Error Logout: ', error);
+      });
+    });
+
+
+
+    document.getElementById('cvs').addEventListener('click', function (e) {
+      e.preventDefault();
+      if (!confirm('메시지 내용들을 cvs 파일로 다운로드 하시겠습니까?')) {
+        return;
+      }
+      fetch('/download-messages')
+        .then((response) => {
+          return response.text();
+        })
+        .then((csvContent) => {
+          let blob = new Blob([csvContent], {
+            type: 'text/csv;charset=utf-8;',
+          });
+          let url = URL.createObjectURL(blob);
+          let a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'messages.csv';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          a.remove();
+          alert('메시지 CSV 다운로드가 완료되었습니다.');
+        })
+        .catch((error) => {
+          console.error('메시지 CSV 다운로드 실패:', error);
+          alert('다운로드 중 문제가 발생했습니다.');
+        });
+    });
+  </script>
+
+  <script type="module">
+    import { app, analytics, messaging } from '../firebase.js';
+
+    // 여기에서 Firebase 기능을 사용할 수 있습니다
+    console.log('Firebase App:', app);
+    console.log('Firebase Analytics:', analytics);
+    console.log('Firebase Messaging:', messaging);
+  </script>
+</body>
+
+</html>

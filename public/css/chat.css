@@ -1,0 +1,178 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #C8DED4;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.top-bar {
+    display: flex;
+    align-items: center;
+    background-color: #C8DED4;
+    padding: 10px 20px;
+}
+
+.back {
+    background-color: transparent;
+    color: #333;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.title {
+    flex-grow: 1;
+    font-size: 20px;
+    color: #485192;
+}
+
+#chatContent {
+    background-color: #C8DED4;
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.msgLine {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px; /* 크기를 키움 */
+    align-items: flex-end;
+}
+
+.msgLine.right {
+    justify-content: flex-end;
+}
+
+.msgBox {
+    max-width: 80%;
+    padding: 10px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+    position: relative;
+}
+
+.msgBox.right {
+    background: #e0e4e7;
+}
+
+.msgBox img {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+  }
+
+.msgTime {
+    font-size: 12px;
+    color: gray;
+    margin-top: 5px; /* 간격 추가 */
+    align-self: flex-end; /* 아래쪽에 정렬 */
+}
+
+.input-container {
+    display: flex;
+    padding: 10px;
+    background-color: #d7e3d4;
+    align-items: center;
+}
+
+input {
+    margin: 0 10px 0 0;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+#myChat {
+    flex-grow: 1;
+    height: 50px;
+}
+
+#send {
+    background-color: #485192;
+    color: white;
+    border: none;
+    cursor: pointer;
+    height: 50px;
+    width: 50px;
+    margin: 0;
+}
+
+#send img {
+    height: 24px;
+    width: 24px;
+}
+
+#send:hover {
+    background-color: #525a94;
+}
+
+.options {
+    max-width: 80%;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 30px;
+}
+
+.optionButton {
+    margin: 5px;
+    padding: 10px;
+    background-color: #c3c6f2;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    color: #333;
+}
+
+.optionButton:hover {
+    background-color: #a0a3e5;
+}
+
+.optionButton.selected {
+    background-color: #a0a3e5;
+    color: #fff;
+}
+
+
+/* avatar 이미지, 사용자 이름 채팅방에 보여주기 */
+.avatarContainer {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.userInitial {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #6c7ae0;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 10px;
+    font-size: 20px;
+  }
+  
