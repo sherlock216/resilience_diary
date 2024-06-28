@@ -5,7 +5,7 @@
 
 <h2>Project Overview</h2>
 <p>다이어리와 채팅방 모바일 앱 구현</p>
-<p>개발기간: 4.29 ~ 6.28 </p>
+<p>개발기간: 2024.4.29 ~ 2024.6.28 </p>
 <br>
 <br>
 
@@ -59,6 +59,18 @@
 <img src="https://img.shields.io/badge/socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white">
 <br>
 
+<h3>Program Tools</h3>
+<p>Putty, Filezilla, HeidiSQL</p>
+<br>
+
 <h3>Others</h3>
 <p>SessionStorage(for saving data temporarily and using in page)</p>
 <p>PWA(manifest.json, service-worker.js etc) for making webapp</p>
+<img src="https://img.shields.io/badge/nginx-009639?style=for-the-badge&logo=nginx&logoColor=white">
+<p>Nginx is used for replacing HTTP to HTTPS</p>
+<br>
+<br>
+
+<h2>유의사항</h2>
+<p>웹 호스팅은 AWS로 되어있고, DB만 Cafe24를 사용하고 있습니다.</p>
+
