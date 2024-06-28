@@ -57,10 +57,14 @@
 <img src="https://img.shields.io/badge/node.js-339933?style=for-the-badge&logo=Node.js&logoColor=white">
 <img src="https://img.shields.io/badge/express.js-000000?style=for-the-badge&logo=express&logoColor=white"/>
 <img src="https://img.shields.io/badge/socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white">
+<img src="https://img.shields.io/badge/aws-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white"/>
+<p>AWS is used for web hosting</p>
 <br>
 
 <h3>Program Tools</h3>
-<p>Putty, Filezilla, HeidiSQL</p>
+<p>Putty</p>
+<img src="https://img.shields.io/badge/filezilla-BF0000?style=for-the-badge&logo=filezilla&logoColor=white">
+<p>HeidiSQL</p>
 <br>
 
 <h3>Others</h3>
