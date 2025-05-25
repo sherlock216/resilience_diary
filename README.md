@@ -37,6 +37,19 @@
 </ol>
 <br>
 <br>
+<img src="https://github.com/user-attachments/assets/08f58435-b5de-488a-8a50-3957005c2a74">
+<img src="https://github.com/user-attachments/assets/52235eac-a79e-4e95-bc9c-d74344c77017">
+<img src="https://github.com/user-attachments/assets/d4aca90e-09da-42e8-a357-f59865be0cc2">
+<img src="https://github.com/user-attachments/assets/0635cc8e-454d-4982-b38e-3ac1dcbc78bc">
+<img src="https://github.com/user-attachments/assets/a77c535b-f484-45ef-b2b1-b550f0bf0b13">
+<img src="https://github.com/user-attachments/assets/e6cc88f2-59e8-4bed-b647-4c38cf6fa27b">
+
+
+
+
+
+
+
 
 <h2>Stacks</h2>
 <h3>Environment</h3>
